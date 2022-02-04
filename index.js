@@ -1,45 +1,59 @@
 const express = require('express')
 const cors = require('cors')
-const fs = require('fs')
+const mongoose = require('mongoose')
 
-const PORT = 3001
+require('dotenv/config')
 
-const data = fs.readFileSync('./data.json')
-let todos = JSON.parse(data)
-let lastId = todos.length === 0 ? 0 : todos[todos.length - 1].id
-
+const Todo = require('./models/Todo')
 const app = express()
 
+// Middleware
 app.use(cors())
 app.use(express.json())
 
+// Routes
 app
     .get('/todos', (req, res) => {
         // Get Todos
         console.log('Received GET request')
-        res.send(todos)
+
+        Todo
+            .find()
+            .then(data => res.json(data))
+            .catch(err => res.status(500).json({ message: err }))
+    })
+    .get('/todos/:id', (req, res) => {
+        // Get One Todo
+        console.log('Received GET request for single todo')
+
+        Todo
+            .findById(req.params.id)
+            .then(data => res.json(data))
+            .catch(err => res.status(500).json({ message: err }))
     })
     .post('/todos', (req, res) => {
         // Add new todo
         console.log('Received POST request')
 
         if (req.body.task) {
-            todos.push({ id: ++lastId, task: req.body.task, done: false })
-
-            fs.writeFile('./data.json', JSON.stringify(todos), (err) => {
-                if (err) {
-                    const message = { message: "Could not save data!" }
-                    res.status(500)
-                    res.send(message)
-                    console.log('File not saved')
-                } else {
-                    res.send(todos)
-                }
+            // Create new todo
+            const todo = new Todo({
+                task: req.body.task
             })
+
+            // Save new data
+            todo
+                .save()
+                .then((data) => {
+                    Todo
+                        .find()
+                        .then(data => res.json(data))
+                        .catch(err => res.status(500).json({ message: err }))
+                })
+                .catch(err => res.status(500).json({ message: err }))
+
         } else {
-            const message = { message: "Data incomplete!" }
-            res.status(400)
-            res.send(message)
+            res.status(400).json({ message: "Data incomplete!" })
         }
     })
     .put('/todos/:id', (req, res) => {
@@ -51,23 +65,18 @@ app
             const task = req.body.task
             const done = req.body.done
 
-            todos.forEach((todo, index) => {
-                if (todo.id.toString() === id) {
-                    todos[index].task = task
-                    todos[index].done = done
-                }
-            })
-
-            fs.writeFile('./data.json', JSON.stringify(todos), (err) => {
-                if (err) {
-                    const message = { message: "Could not save data!" }
-                    res.status(500)
-                    res.send(message)
-                    console.log('File not saved')
-                } else {
-                    res.send(todos)
-                }
-            })
+            Todo
+                .updateOne(
+                    { _id: id },
+                    { $set: { task, done } }
+                )
+                .then((data) => {
+                    Todo
+                        .find()
+                        .then(data => res.json(data))
+                        .catch(err => res.status(500).json({ message: err }))
+                })
+                .catch(err => res.status(500).json({ message: err }))
         } else {
             const message = { message: "Incomplete request data!" }
             res.status(400)
@@ -81,18 +90,15 @@ app
         const id = req.params.id
 
         if (id) {
-            todos = todos.filter(todo => todo.id != id)
-
-            fs.writeFile('./data.json', JSON.stringify(todos), (err) => {
-                if (err) {
-                    const message = { message: "Could not save data!" }
-                    res.status(500)
-                    res.send(message)
-                    console.log('File not saved')
-                } else {
-                    res.send(todos)
-                }
-            })
+            Todo
+                .deleteOne({ _id: id })
+                .then((data) => {
+                    Todo
+                        .find()
+                        .then(data => res.json(data))
+                        .catch(err => res.status(500).json({ message: err }))
+                })
+                .catch(err => res.status(500).json({ message: err }))
         } else {
             const message = { message: "No id specified!" }
             res.status(400)
@@ -100,4 +106,11 @@ app
         }
     })
 
-app.listen(PORT, function () { console.log(`Server started at port ${PORT}`) })
+// Connect to MongoDB
+mongoose
+    .connect(process.env.DB_URI)
+    .then(() => console.log("Database connected."))
+    .catch(err => console.log(err))
+
+// Start server
+app.listen(process.env.PORT, function () { console.log(`Server started at port ${process.env.PORT}.`) })

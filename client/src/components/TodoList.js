@@ -28,8 +28,8 @@ function TodoList({ apiUrl }) {
             {todos && todos.map((todo) => (
                 <TodoItem
                     apiUrl={apiUrl}
-                    key={todo.id}
-                    id={todo.id}
+                    key={todo._id}
+                    id={todo._id}
                     text={todo.task}
                     done={todo.done}
                 />
