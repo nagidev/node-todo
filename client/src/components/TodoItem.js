@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useDispatch } from 'react-redux';
 
@@ -8,6 +8,7 @@ function TodoItem({ apiUrl, id, text, done }) {
     const [editing, setEditing] = useState(false)
     const [newTask, setNewTask] = useState(text)
     const [newDone, setNewDone] = useState(done)
+    const loading = useRef(true)
     const dispatch = useDispatch()
 
     const deleteTodo = async () => {
@@ -28,7 +29,11 @@ function TodoItem({ apiUrl, id, text, done }) {
     }
 
     useEffect(() => {
-        updateTodo()
+        if ( !loading.current ) {
+            updateTodo()
+        } else {
+            loading.current = false
+        }
     }, [newDone])
 
     return (
